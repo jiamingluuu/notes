@@ -106,14 +106,14 @@ It has different encryption modes:
   - Fast, easy to perform parallelization.
   - But same block is encrypted to same ciphertext (violates diffusion)
 #figure(
-  image("./img/ecb.png", width: 100%),
+  image("./img/ecb.png", width: 70%),
   caption: "AES ECB mode"
 )
 - CBC: cipher block chaining
   - Repeating plaintext blocks are not exposed in the ciphertext.
   - No parallelism.
 #figure(
-  image("./img/cbc.png", width: 100%),
+  image("./img/cbc.png", width: 70%),
   caption: "AES ECB mode"
 )
 - CFB: cipher feedback
@@ -121,7 +121,7 @@ It has different encryption modes:
   - High entropy and parallelism.
   - Vulnerable to key-reused attack 
 #figure(
-  image("./img/ctr.png", width: 100%),
+  image("./img/ctr.png", width: 70%),
   caption: "AES ECB mode"
 )
 
@@ -189,13 +189,13 @@ in around $2^(n/2)$ evaluations. Hence SHA-256 has 128 bits security.
 
 *SHA-2*
 #figure(
-  image("./img/sha2.png", width: 100%),
+  image("./img/sha2.png", width: 70%),
   caption: "MD5, SHA-1, SHA-2"
 )
 
 *SHA-3*
 #figure(
-  image("./img/sha3.png", width: 100%),
+  image("./img/sha3.png", width: 70%),
   caption: "SHA-3"
 )
 
@@ -211,3 +211,66 @@ $
 &"HMAC"_k (m) = H(k parallel m parallel k)\
 &"HMAC"_k (m) = H((k xor "opad") parallel H((k xor "ipad") parallel m)\
 $
+
+= Protocols
+== Symmetric Protocols
+Symmetric protocols utilize the advantage of symmetric cryptography to provide
+communication with confidentiality and integrity. The protocol defines a
+procedure of key exchange which ensures two parties are able to defend 
+themselves from the attack of a malicious party during communication. Once the 
+shared key $k$ is set up, they can communicate by:
+- Encrypt and MAC (E&M)
+$ "AE"_k (m) = E_k(m) parallel H_k (m) $
+- MAC then Encrypt (MtE)
+$ "AE"_k (m) = E_k (m parallel H_k (m)) $
+- Encrypt then MAC (EtM)
+$ "AE"_k (m) = E_k (m) parallel H_k (E_k (m)) $
+#figure(
+  image("./img/symmetric-protocol.png", width: 70%),
+  caption: "Communication in symmetric protocol"
+)
+However, the primary issue with symmetric protocols is how to make an agreement
+on the shared key used $K_(a b)$ used between to parties, say, Alice and Bob.
+
+The naive way is for every connection in a network, a shared key is exchange 
+physically using a secure channel. Therefore, $1/2 n(n-1)$ keys are required for
+a network with $n$ nodes.
+
+A better solution is purposed as a KDC (key distributed center) manages all the
+keys used, with premisses:
+- the key exchange channel between KDC and each party is secure,
+- KDC is trusted.
+Before, there were a vulnerable version of key exchange protocol
+#figure(
+  image("./img/vulnerable-kdc.png", width: 70%),
+  caption: "Vulnerable KDC"
+)
+If the key $K_(a b)$ is compromised, then Mallory is able to perform replay 
+attack.
+#figure(
+  image("./img/kdc-the-fix.png", width: 70%),
+  caption: "Fixed KDC"
+)
+But the existence of KDC has drawbacks:
+- it is a single point of failure,
+- one cannot exchange key with another when zero knowledge.
+
+To solve this, we have DH (Diffie-Hellman) protocol:
+- Alice
+  - generate $g, p$ as public key, where $g$ is small (2, 5, 7...) and $p$ is at least 2048 bits.
+  - choose $a$, a 2048 bits private key
+  - compute $"dhA" = g^a mod p$
+  - send $p, "dhA", n_0$ to Bob
+- Then Bob
+  - choose $b$, another 2048 bits private key 
+  - compute $"dhB" = g^b mod p$
+  - send $"dhB", n_1$ back to Alice
+- The session key $K$ is 
+$ K = g^(a b) mod p  = (g^a mod p)^b mod p = (g^b mod p)^a mod p. $
+#figure(
+  image("./img/dh-with-auth.png", width: 70%),
+  caption: "DH key exchange with authentication"
+)
+== Digital Signature 
+MAC we have discussed provide a decent method of verification under the scenario of no prior trust is given to the connection. Whereas it is easy to be forged. To solve this issue, digital signature is introduced, where it is 
+- commonly used in key exchange 
