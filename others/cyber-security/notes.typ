@@ -1,6 +1,7 @@
-#set page(columns: 2)
-#set text(size: 12pt)
+#set text(size: 13pt)
+#set heading(numbering: "1.")
 
+#outline(indent: auto)
 = Definitions
 - Safety: for reasonable inputs, get reasonable outputs.
 - Security: for unreasonable inputs, get reasonable outputs.
@@ -16,7 +17,7 @@
 == CIA 
 - (C) Confidentiality: Information is disclosed to legitimate users.
 - (I) Integrity: Information is created or modified by legitimate users.
-- (A) Information is accessible to legitimate users.
+- (A) Availability: Information is accessible to legitimate users.
 Notice that CIA can be conflicting to each other in some scenarios.
 
 == Risk Analysis & Policy, Mechanisms and Assurance
@@ -53,7 +54,7 @@ risk exposure, and determine which risks to mitigate.
 *Requirements*
 
 We use the same key $k$ for encryption $E_k$ and decryption $D$:
-- $D_k(E_k (m)) = m$ for every key $k$ and $E, D$.
+- $D_k (E_k (m)) = m$ for every key $k$ and $E, D$.
 - $E_k$ and $D_k$ are easy to compute.
 - Given $c = E_k (m)$, it is hard to find the plaintext $m$.
 
@@ -92,7 +93,7 @@ Ideal block cipher
 DES is broken in 1998 and 2006. And Nesting encryption process is not a valid counter-measure.
 $ 2"DES"_(k_1, k_2) (m) = E_(k_2)(E_(k_1) (m)) $
 
-To broke this paradigm we can brute for the result of $E_(k_1 (m))$ and $D_(k_2 (m))$, for every possible key pair $(k_1, k_2)$. Then match the valid key candidate. The effective key space only doubled, from 56 bits become 57 bits. 
+To broke this paradigm we can brute for the result of $E_(k_1)(m)$ and $D_(k_2)(c)$, for every possible key pair $(k_1, k_2)$. Then match the valid key candidate. The effective key space only doubled, from 56 bits become 57 bits. 
 
 However, triple DES is widely used 
 $ 3"DES"_(k_1, k_2, k_3) (m) = E_(k_3) (D_(k_2) (E_(k_1) (m))), $
@@ -141,6 +142,34 @@ The trade-off between stream cipher and block cipher:
 - stream cipher is fast but has low diffusion, whereas
 - block cipher is slow but has high diffusion.
 
+== Asymmetric Cryptography
+*Function Requirements*
+- $D_(K s) (D_(K p) (m)) = D_(K p) (D_(K s) (m)) = m$ for every key pair $(K p, K s)$.
+  - Easy to generate the key pair.
+  - Encryption and decryption are easy to compute.
+- Hard to matching key $K s$ given $K p$
+#table(
+  columns: 4,
+  inset: 10pt,
+  align: horizon,
+  table.header(
+    [Name], [Speed (cycle/byte)], [Key size (bits)], [Effective key length (bits)]
+  ),
+  [RSA], [$10^6$], [1024], [80],
+  [RSA], [$10^6$], [2048], [112],
+  [RSA], [$10^6$], [3072], [128],
+  [RSA], [$10^6$], [4096], [140],
+  [RSA], [$10^6$], [15360], [224-256],
+  [ECC], [$10^6$], [256], [128],
+  [ECC], [$10^6$], [448], [224-256],
+)
+
+*Summary between symmetric and asymmetric cryptography*:
+- Symmetric is fast but has key agreement. 
+  - That is, parties is able to generate a secrete key even if an eavesdropper is listening to the communication channel. 
+  - Often used to encrypt message 
+- Asymmetric is slow but does not have key agreement.
+  - Used for encrypt shared key or hash.
 == Hash Functions
 $ H(m) = x $
 An ideal hash function satisfies:
@@ -176,5 +205,9 @@ certificate... Given message $m$ and key $k$, people often sends a whole message
 $ m parallel "MAC"_k (m) $ 
 together. One variant is HMAC, which use a hash function on the message 
 and the key. 
-- But in particular, if the HMAC is badly designed, for instance, using SHA2 and let $"MAC"_k (m) = H(k parallel m)$, then mallory can perform hash length extension attack on the message sent.
-- A good design 
+- But in practice, if the HMAC is badly designed, for instance, using SHA2 and let $"MAC"_k (m) = H(k parallel m)$, then mallory can perform hash length extension attack on the message sent.
+- Good HMAC example
+$ 
+&"HMAC"_k (m) = H(k parallel m parallel k)\
+&"HMAC"_k (m) = H((k xor "opad") parallel H((k xor "ipad") parallel m)\
+$
