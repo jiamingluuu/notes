@@ -1,5 +1,6 @@
 #set text(size: 13pt)
 #set heading(numbering: "1.")
+#set page(numbering: "1")
 
 #outline(indent: auto)
 #pagebreak()
@@ -7,7 +8,7 @@
 - Safety: for reasonable inputs, get reasonable outputs.
 - Security: for unreasonable inputs, get reasonable outputs.
 
-== Security Theatre
+*Security Theatre*
 - Threat: Possibility of damage,
 - Countermeasure: Limits possibility or consequence of damage,
   - mitigates threats, disables attacks, removes/reduces vulnerabilities.
@@ -15,7 +16,7 @@
   - enables threats.
 - Attacks: Exploitation of vulnerabilities to realize a threat.
 
-== CIA 
+*CIA*
 - (C) Confidentiality: Information is disclosed to legitimate users.
 - (I) Integrity: Information is created or modified by legitimate users.
 - (A) Availability: Information is accessible to legitimate users.
@@ -43,6 +44,7 @@ $ "Risk exposure" = "probability" times "impact" $
 We can set up a risk table to list out all the possible risk with their 
 risk exposure, and determine which risks to mitigate.
 
+#pagebreak()
 = Cryptography 
 *Design Principles*
 - Kerkoff Principle: The security of a crypto system must not rely on keeping the algorithm secret.
@@ -215,7 +217,8 @@ $
 &"HMAC"_k (m) = H((k xor "opad") parallel H((k xor "ipad") parallel m)\
 $
 
-= Protocols
+#pagebreak()
+= Key Exchange Protocols
 == Digital Signature 
 MAC we have discussed provide a decent method of verification under the scenario of no prior trust is given to the connection. Whereas it is easy to be forged. To solve this issue, digital signature is introduced, where it is 
 - commonly used in key exchange 
@@ -279,7 +282,7 @@ $ K = g^(a b) mod p  = (g^a mod p)^b mod p = (g^b mod p)^a mod p. $
   caption: "DH key exchange with authentication"
 )
 
-== Asymmetric Protocol
+== Asymmetric Protocols
 Asymmetric protocols are used in mutual authentication, where two parties want 
 to engage in the communication and confirm the opposite site is the party they 
 intended to talk to.
@@ -327,13 +330,14 @@ public key. We have:
   - Trust the certificates assigned by certificate authority (CA)
   - If one trust the upper CA, then all the subsequent and lower CA are trusted.
 
-= Network
+#pagebreak()
+= Network Security
 The possible attacks of an attacker contains:
 - Scanning: survey the network and its hosts.
 - Eavesdropping: read messages.
 - Spoofing: forge illegitimate messages.
 - DOS (Denial of Service): disrupt the communication.
-== Network Layers
+== Network Layers and Vulnerabilities
 #figure(
   image("./img/network-layer.png", width: 45%),
   caption: "Network Layers"
@@ -421,3 +425,224 @@ different hosts.
 
 === Application Layer
 Enabling communication between applications running on different hosts.
+
+*BPG* (Border Gateway Protocol)
+- Each router has a routing table to IP messages, BGP is the protocol for establishing routes.
+- *Attack* Route hijacking
+  - An attacker can advertise fake routes.
+
+*DNS* (Domain Name Server)
+- Internet applications relies on canonical hostname rather than IP addresses
+- DNS servers translates domain names into IP addresses.
+- *Attack* DNS cache poisoning 
+  - An attacker can advertise fake DNS information
+
+*HTTP* (Hyper-Text Transfer Protocol)
+- Governing the exchange of information between web clients and web servers.
+
+  
+== Countermeasures on Network Threats
+=== TLS (Transport Layer Security)
+HTTPS = HTTP + TLS (SSL)
+- With TLS, a transport layer protection, the communication is prevent from all kinds of spoofing and eavesdropping.
+  - Integrity is guaranteed: authentication handshake.
+  - Confidentiality is guaranteed: end-to-end secure channel.
+- *Attack*: SSL Stripping
+  - Webpages can be delivered either with HTTPS or HTTP.
+  - Browser can automatically switch between HTTP and HTTPS.
+  - An attacker can perform MitM attack and remove the SSL protection.
+
+=== Preventing Packet Sniffing
+Ethernet 
+  - Isolate Ethernet traffics (no straightforward packet sniffing)
+  - Hub: broadcast all messages on all ports.
+  - Switch: forward messages on specific port based on their MAC addresses.
+Wireless network
+  - Encrypt message before sending them over the air.
+
+=== Preventing Spoofing
+Preventing DNS spoofing 
+- DNSSEC: DNS Security Extensions, provides authentication (but not encryption) between DNS servers.
+  - not widely deployed 
+- DNS over HTTPS: provides authentication and encryption between client/server and server/server 
+  - pushed by Google and Mozilla
+
+Preventing rout hijacking (BGP)
+- Bogon Filtering: deny route advertised by hosts with spoofed addresses
+
+=== Preventing DOS attacks 
+Preventing TCP-syn flooding 
+- TCP-syn cookie: prevents from maintaining a queue of half-opened TCP connections.
+
+Preventing DOS and DDOS attacks in general 
+- Network Ingress Filtering
+  - Deny access to network traffic with spoofed DOS and DDOS.
+  - Ensure that traffic is traceable to its correct source network.
+
+=== Preventing Scanning Attacks 
+Preventing host discovery and port-scanning 
+- Host Discovery: ICMP can be disabled or reserved to hosts on the same network 
+- Port Scanning: TCP connections can be rejected if a source attempts to initiate multiple connections on multiple ports simultaneously.
+- However such countermeasures are impossible in practice because 
+  - each host needs to have packet filtering capability across different hardware, OS, and versions,
+  - the admin needs to have administrative privilege on every host to push the packet filtering policy
+== Firewall
+Defines a logical defense parameter and acts an access control between two networks.
+- packet filtering based on IP address 
+- inbound traffic from the Internet trying to get into the protected network 
+- outbound traffic going the other way
+There are two types of firewalls
+- Stateless packet filtering, purely based on the IP address and the port 
+- Stateful packet filtering, tracks the status of every connection (TCP 3 way handshake) 
+
+*DMS* (DeMilitarized Zone) 
+- isolates exposed public servers
+#figure(
+  image("./img/dmz.png", width: 70%),
+  caption: "DMZ"
+)
+== Intrusion Detection 
+How do we know when malicious party enters our network?
+*IDS* (Instruction Detection Systems)
+- Often operate in stealth mode, connected in the local network.
+- There are two wats to build an IDS 
+  - Signature-based IDS, have a pre-defined malicious message pattern
+  - Heuristic-based IDS, builds a model of acceptable message exchange pattern (use machine learning).
+- The IDS normally lookup the headers, packet contents (payload), the packet fragmentation.
+- However, the main issue of IDS is that, if a nomad host is hacker, Mallory is able to use his/her machine to access the local network service and skirt supervision of IDS.
+
+*IPS* (Intrusion Prevention System)
+- IPS = IDS + Firewall
+== VPN (Virtual Private Network)
+Tunneling protocol
+- Alice's message is encapsulated and sent to the VPN server.
+- The VPN extract this traffic and send it to the destination 
+- It provides anonymity (from the IP perspective) as no one knows Alice's IP address.
+
+=== Tor (The Onion Router)
+#figure(
+  image("./img/tor.png", width: 70%),
+  caption: "TOR"
+)
+In TOR, no one knows about Alice's IP and content at once.
+- The content can be seen at the exit node, so whatever Alice does illegally on the Internet, the exit node might be blame for it.
+- TOR prevents client being identified by using IP address. However, TOR does not prevent client being identified based on the application information.
+
+#pagebreak()
+= Human Authentication
+- Identification is assigning a set of data to a person or an organization 
+- Authentication is making a sage link between a subject and one or several of identities.
+== Authentication Factors
+In general, it can be classified into three types:
+- Something that you know:
+  - Password, PIN number, secrete questions ...
+  - *Good as long as* the user remember the secrete and nobody can uncover or guess this secret.
+  - *Gets compromised* when someone else knows this secret and is able to use it.
+- Something that you have: 
+  - IDs, physical key, mobile phone ...
+  - *Good as long as* they are not lost and damaged
+  - *Gets compromised* when someone can duplicate or fake them
+- Something that you are or do (biometrics)
+  - Fingerprint, voice recognition, face recognition
+  - robustness depends on the precision of this measure 
+  - *Good as long as* you act or look like the same and nobody can pretend the way you act.
+  - *Gets compromised* when someone can nearly act like you.
+The way of storing password can also lead vulnerabilities
+- In clear: really bad
+- Hashed: bad
+  - one can use rainbow table to lookup the hash of commonly seen Password
+- Salted Hash: better and easy to manage
+  - on the client side, before the password is passed to the server, pad the password with a chunk of meaningless bytes.
+- Encrypted (best but complex to manage) 
+  - how to decrypt?
+
+#pagebreak()
+= System Security 
+== Vulnerabilities
+The security of OS often compromised when 
+- is process is crashed
+- a process can have an undesirable behavior
+- legitimate user execute a malicious software
+To find program vulnerabilities, we can 
+- find a bug yourself and investigate
+- take a look at CVE alerts (Common Vulnerabilities and Exposures)
+#figure(
+  image("./img/timeline-of-vulnerabilities.png", width: 70%),
+  caption: "Timeline of Vulnerabilities"
+)
+== Attacks
+*Stack overflow*
+
+
+
+*TOCTOU* (Time Of Check to Time Of Use)
+#figure(
+  image("./img/toctou.png", width: 70%),
+  caption: "TOCTOU"
+)
+== Countermeasures on System Threats
+*Type-safe program*
+- cannot access arbitrary memory addresses
+- cannot corrupt their own memory 
+- do not crash
+
+For `C` program, we can set `FORTIFY_SOURCE` when compiling source code with 
+`GCC`, which provides buffer overflow checks for unsafe `C` libraries.
+
+*Canaries* 
+- The compiler modifies every function's prologue and epilogue regions to place and check a value (canary) on the stack.
+- When a buffer overflows, the canary is overwritten. The programs detects it before the function returns and an exception is raised.
+
+*DEP/NX* (None Executable Stack) 
+- The program marks important structures in memory as non-executable.
+- The program generates an hardware-level exception if one is trying to execute those memory regions- This makes normal stack buffer overflows impossible.
+
+*ASLR* (Address Space Layout Randomization)
+- The OS randomize the location (random offset) where the standard libraries and other elements are stored in memory.
+- Harder for the attacker to guess the address of a `lib-c` subroutine.
+
+*PIC/PIE* (Position Independent Code/Executables)
+- with PIC, code is compiled with relative addressing that are resolved dynamically when executed by calling a function to obtain the return value on stack.
+
+*Sandbox* 
+- A tightly-controlled set of resources for untrusted programs to run in.
+
+== Defensive Programming
+Adopting good programming practices
+- Modularity 
+  - Have separate modules for separate functionalities.
+  - Easier to find security flows when components are independent.
+- Encapsulation
+  - Limit the interaction between the components.
+  - Avoid wrong usage of the components.
+- Information hiding 
+  - Hide the implementation, but
+  - this does not import security
+- Check the inputs, even between components that belongs to the same application.
+- Be fault tolerant by having a consistent policy to handle failure.
+- Reuse known and widely used code by using design patterns and exiting libraries.
+
+Use formal methods to generate a program 
+- mathematical description of the problem 
+- proof of correctness 
+- executable code or hardware design
+
+= Web Security 
+A web application consists of 
+- front-end, application running on client' side.
+- back-end, application running on server's side.
+
+Session 
+- *Session ID* is an unique and unforgeable token
+  - stored in cookie
+  - bind to key/value paris data, which is stored on the server.
+- User can create, modify, delete the session ID in the cookie.
+- But cannot access the key/value pairs stored on the server.
+
+Mixed-content happens when:
+- an HTTPS page contains elements served with HTTP
+- an HTTPS page transfers control to another HTTP page within the same domain 
+  - credentials (authentication cookie) will be sent over HTTP.
+  - modern browser block or warn mixed-content.
+
+== Backend Vulnerabilities
