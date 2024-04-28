@@ -93,6 +93,11 @@ that row is updated by another transaction that is committed in between.
 - *Phantom Reads*: Occurs when a transaction retrieves a set of rows twice and
 new rows are inserted into or removed from that set by another transaction that
 is committed in between.
+- *Serializable*:
+  - With a lock-based concurrency control, serializability requires read and
+  write blocks to be released at the end of transaction.
+  - With non-lock based concurrency control, only one of the concurrent
+  transaction is allowed to be committed if there exists a write collision.
 
 ## Reference 
 \[1\] [Michael J. Cahill, Uwe Röhm, and Alan D. Fekete. 2008. Serializable 
