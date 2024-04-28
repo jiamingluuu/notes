@@ -116,7 +116,7 @@ instructions.
 ### For loop
 *Hot* codes are those assessed frequently, on the contrary of *cold*.
 
-`__restrict` keyword indicates two pointers does not pointes to an overlapped
+`__restrict` keyword indicates two pointers does not points to an overlapped
 memory region.
 ```cpp
 void func(float *__restrict a, float *__restrict b) {
