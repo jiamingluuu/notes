@@ -19,7 +19,7 @@ A Bitcask instance is a directory
 ```
 Each KV entry has the following fields:
   - CRC (cyclic redundancy code) checksum
-  - time stamp
+  - timestamps
   - key size
   - value size
   - key 

@@ -123,7 +123,7 @@ if (stat == std::future_status::ready) {
 *Remark*
 - `future` and `promise` can have type `void`.
 - `future` and `promise` does not have copy assignment and copy construction 
-  function, so to make a reference, wrap it using `std::shated_future<void>`.
+  function, so to make a reference, wrap it using `std::shared_future<void>`.
 
 ### `std::launch::deferred`
 When we specifies the `std::launch::deferred` parameter when constructing
@@ -136,12 +136,14 @@ std::future<int> fret = std::async(std::launch::deferred, [&] {
 ```
 
 ### Mutex
+A mutex can be used to prevent race condition while modifying data structure 
+concurrently.
 ```cpp
 std::vector<int> v;
 std::mutex m;
 
 std::thread t1([&] {
-  for (int i = 0; i< 100; i++) {
+  for (int i = 0; i < 100; i++) {
     m.lock();
     v.push_back(i);
     m.unlock()
@@ -149,7 +151,7 @@ std::thread t1([&] {
 })
 
 std::thread t2([&] {
-  for (int i = 0; i< 100; i++) {
+  for (int i = 0; i < 100; i++) {
     m.lock();
     v.push_back(i);
     m.unlock();
@@ -158,16 +160,34 @@ std::thread t2([&] {
 ```
 
 We can also use `std::lock_guard`, which call `lock()` during the constructor
-function and call `unlock()` during destructor function. However, `lock_guard`
-can not release the lock in advance, so we can also use `std::unique_lock` for 
-having a high flexibility.
+function and call `unlock()` during destructor function. 
+```cpp
+std::mutex m;
+std::thread t1([&] {
+  for (int i = 0; i < 100; i++) {
+    std::lock_guard grd(m);
+    v.push_back(i);
+  }
+})
+
+std::thread t2([&] {
+  for (int i = 0; i < 100; i++) {
+    std::lock_guard grd(m);
+    v.push_back(i);
+  }
+})
+```
+
+However, `lock_guard` can not release the lock in advance, so we can also use 
+`std::unique_lock` for having a higher flexibility.
 ```cpp
 std::mutex m;
 
 std::thread t([&] {
   for (int i = 0; i < 100; i++) {
-    std::uniqu_lock grd(m);
+    std::unique_lock grd(m);
     v.push_back(i);
+
     grd.unlock();
     do_something();
     grd.lock();
@@ -176,9 +196,15 @@ std::thread t([&] {
 ```
 
 `grd()` acquire the lock by default, but we can use `grd(m, std::defer_lock)`
-to does not acquire the lock when the guard is initialized.
+to prevent acquiring lock when the guard is initialized.
 
+We can also use `try_lock()` to acquire the lock in a non-blocking pattern, 
+there this function either:
+- returns true and acquire the lock, or 
+- returns false and does not block the current thread.
 
+Between `lock()` and `try_lock()`, we have `try_lock_for(t)` which wait for 
+acquiring the lock for `t` timestamps, the unit is determined by using `chrono`.
 
 
 

@@ -65,21 +65,22 @@ while committing.
 
 #### SSI (Serializable Snapshot Isolation)
 On writing,
-- stored data to memory, record keys to a set (saved for conflict check).
+- stored data to memory, insert keys to a set (saved for conflict check).
 
 On committing,
 - Acquire a lock to prevent race condition.
 - Conflict check: roll back to original state if the current key read by 
 transaction has been modified by other transactions.
-- Acquire the latest version of transcation.
-- Encoding: append all the key of on-writing data with a the version number.
+- Acquire the latest version (the one has the largest sequence number) of 
+transaction.
+- Encoding: append all the key of on-writing data with a sequence number.
 - Batchwisely write all the data into the database engine, ensure atomicity 
 and durability.
 
 On reading,
 - Fetch the data from existing data set, return on success.
 - Otherwise find the encoded key within the database engine.
-- Saves all teh data record, for the convience during the conflict check 
+- Saves all the data record, for the convenience of the conflict check 
 happened at transaction.
 
 ### Isolation
