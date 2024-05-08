@@ -137,5 +137,61 @@ Limitations:
 - Range queries are not efficient. Cannot easily scan over all keys between 
 `kitty000` and `kitty999`.
 
-#### SSTables and LSM-Trees
+### SSTables and LSM-Trees
+Similar for bitcask having segment files, but with the an extra feature: 
+- All the sequence of kv pairs is sorted by key.
+- The following algorithm described also known as LSM-Tree (log-structured 
+  merge-tree)
 
+On merging two SSTable:
+- Read input files side by side, and look at the first key in each file, copy 
+  the key with smallest key to the result file.
+- If two key are the same, copy the one from the most recent file.
+- Fast on writing, but slow for seeking non-existing key (must iterate 
+  through all segment and in memory map).
+
+Key lookup:
+- Store a sparse key-indexing in memory. 
+  - In terms of sparse, it means we don't need to record the indexing of all 
+  keys, instead, we can skip several keys.
+- On finding a key, for instance `handiwork`, look for the offset for keys 
+  `handbag` and `handsome`, then jump to `handbag` and scan from there.
+
+Constructing and maintaining SSTables:
+- Add the write query to a balanced tree called *memtable*
+- When memtable is too large, write it out to the disk as an SSTable file.
+- On read, first try to find in memtable, if absent, find on disk.
+- Run a merge process if needed.
+
+### B-Trees
+Break the database down into fixed-size *blocks* or *pages*, 4KB each.
+- One page is designated as the root of B-tree
+- Each chile is responsible for a continuous range of keys.
+- Leaf page stores each individual key, which either contains the value for each 
+  key inline or contains references to the pages where the values can be found.
+- *Branching factor* describes the number of references to child pages in one 
+  page.
+- Efficiency: n keys has O(log n) depth.
+
+Key lookup: 
+- Simply read from each page until reaches the leaf node.
+- Similar for value update on existing key.
+
+Insert
+- When insert a non-existing key, 
+  - Find the page whose rage encompasses the new key and add it to that page.
+  - If there is no enough space for the page P, splits P into two half-full 
+  pages to accommodate the new key.
+
+If the program crashes in the middle of child split, index is corrupted, 
+countermeasure like WAL (write-ahead log) is used.
+
+And to perform concurrency control, *latches* (lightweight locks) is used.
+
+### Tradeoff 
+- LSM-tree is faster for writes, B-tree is faster for reads.
+- B-tree need must write every piece of data at least twice: WAL, tree page, and 
+sometime even the third time for split child.
+- LSM-tree has high write throughput, partially because they have lower write 
+amplification, and partially because they sequentially write compact SSTable 
+files rather than having to overwrite several pages in the tree.
