@@ -1,3 +1,15 @@
+# Skipped Sections
+1. Data Models and Query Languages
+   - Query Languages for Dta
+   - Graph-Like Data Models
+     - Graph Queries in SQL
+     - Triple-Stores and SPARQL
+     - The Foundation: Datalog
+2. Storage and Retrieval
+   - Transaction Processing or Analytics?
+   - Column-Oriented Storage 
+3. Encoding and Evolution
+
 # Part I. Foundations of Data Systems
 ## 1. Reliable, Scalable, and Maintainable Applications
 *Data-intensive*, on the contrary of compute-intensive, application is mainly 
@@ -8,7 +20,7 @@ responsible for:
 - send a message (async) to another process (stream processing)
 - periodically crunch a large amount of accumulated data (batch processing)
 
-### Metrics of distributed systems
+### Metrics of Distributed Systems
 #### Reliability
 The system continue to work correctly even in the face of adversity.
 - NOTE: A *fault* is defined as one component of the system deviating from its
@@ -117,8 +129,8 @@ data file.
 A log-structured storage engine that
 - Stores key in RAM, values on disk.
 - Break the log into segments of a certain size by closing a segment file when 
-it reaches a certain size. Keys are mapped (using hash) to the file offset of 
-each segment file.
+  it reaches a certain size. Keys are mapped (using hash) to the file offset of 
+  each segment file.
   - On key lookup, we check the most recent segment, and if not present, check 
   the second-recent and so on.
   - *File formate*: Binary, encodes each record with the length of string, then 
@@ -135,10 +147,10 @@ each segment file.
 Limitations:
 - Hash table must fit in memory.
 - Range queries are not efficient. Cannot easily scan over all keys between 
-`kitty000` and `kitty999`.
+  `kitty000` and `kitty999`.
 
 ### SSTables and LSM-Trees
-Similar for bitcask having segment files, but with the an extra feature: 
+Similar for bitcask having segment files, but with the an extra constraint: 
 - All the sequence of kv pairs is sorted by key.
 - The following algorithm described also known as LSM-Tree (log-structured 
   merge-tree)
@@ -181,7 +193,7 @@ Insert
 - When insert a non-existing key, 
   - Find the page whose rage encompasses the new key and add it to that page.
   - If there is no enough space for the page P, splits P into two half-full 
-  pages to accommodate the new key.
+    pages to accommodate the new key.
 
 If the program crashes in the middle of child split, index is corrupted, 
 countermeasure like WAL (write-ahead log) is used.
@@ -189,9 +201,112 @@ countermeasure like WAL (write-ahead log) is used.
 And to perform concurrency control, *latches* (lightweight locks) is used.
 
 ### Tradeoff 
+Pros:
 - LSM-tree is faster for writes, B-tree is faster for reads.
 - B-tree need must write every piece of data at least twice: WAL, tree page, and 
-sometime even the third time for split child.
+  sometime even the third time for split child.
 - LSM-tree has high write throughput, partially because they have lower write 
-amplification, and partially because they sequentially write compact SSTable 
-files rather than having to overwrite several pages in the tree.
+  amplification, and partially because they sequentially write compact SSTable 
+  files rather than having to overwrite several pages in the tree.
+- LSP-tree can be compressed better, the splitted node of B-tree potentially 
+  leads to fragmentation on disk.
+
+$$\text{write amplification} = \frac{\text{data written to the storage device}}{\text{data written to the database}}$$
+
+Cons:
+- Compaction process can sometime lag the ongoing rw.
+- Compaction preempts the bottleneck on disk write bandwidth with rw.
+- Hard for managing transaction.
+
+### OLAP and OLTP
+- OLTP (Online Transaction Processing) are the system that user-facing, 
+  typically looks up a small number of records by some key, insert or update the 
+  database, the access pattern is usually interactive.
+- OLAP (Online Analytic Processing) are queries that scan over hug number of 
+  records but only read a few column, perform calculation like summation.
+
+## 4. Encoding and Evolution
+### JSON and XML
+### Protocol Buffers
+Key component consists of:
+- A *schema* for any data that is encoded (possibly a IDL, interface definition 
+  language)
+- A *code generation tool* that takes a schema definition and produces classes 
+  that implement the schema in various programming languages.
+- *Field tags*, are those number that appear in the schema definition.
+  - A field is omitted from the encoded record if its field tag is not set.
+  - Forward compatibility: When old code tries to read data written by new code,
+    un-recognized field tags are ignored.
+  - Backward compatibility: As long as each field has a unique tag number, new 
+    code can always read old data.
+
+# Part II. Distributed Data
+## 5. Replication
+### Readers and Followers
+A *Replica* is a copy of the database stored in each node.
+
+Leader-based replication (aka. active/passive or master-slave replication)
+- One of the replica is chosen to be *leader*. When clients' initiate write 
+  requests, the request must be send to leader and first writes the new data to
+  its local storage.
+- The other replicas are *followers*. When leader writes new data to its local 
+  storage, it send data change to all of its followers as part of a
+  *replication log*. Each follower update their local storage according to this 
+  log.
+- For read requests, client can query either the leader or followers; where as 
+  writes must query leader.
+
+#### Synchronous vs. Asynchronous Replication
+![Sync and async replication](./img/sync%20and%20async%20replication.png)
+- Follower 1 is *synchronous*, the leader waits until follower 1's ok.
+- Follower 2 is *asynchronous*, the leader sends the message but does not wait 
+  for its response.
+- We can also make one follower sync and the others async. If the sync follower 
+  is unavailable or slow, one async is make sync. This configuration is called
+  *semi-sync*.
+
+#### Setting up New Followers
+1. Take a consistent snapshot of the leader's database at some point in time.
+2. Copy the snapshot to the new follower node.
+3. The follower connects to the leader and requests all the data changes that 
+   have happened since the snapshot was taken. Assume the snapshot is associated
+   with an exact position in the leader's replication log.
+4. When the follower has processed the backlog of data changes since the 
+   snapshot, we say it has *caught up*. After this stage, the newly set-up-node
+   can process data changes from the leader as they happen.
+
+#### Handling Node Outages
+Follower failure: Catch-up recovery
+- Use log to determine the latest transaction before failure occurred, then sync
+  with the leader for all subsequent updates.
+
+Leader failure: Failover
+- Promotes a follower to leader, configs clients so they sent write requests to 
+  the new leader.
+- The promotion process can either happened manually, or automatically, in which
+  - Determining that the leader has failed. (Sometime just use time out)
+  - Choosing a new leader. The best candidate is usually the one with the most 
+    up-to-date data.
+  - Reconfiguring the system to use the new leader.
+
+Problems with failover:
+- What if new leader have not received all the writes from the old leader 
+  before it failed? 
+  - Solution: Discard unreplicated writes from old leader
+- *Split brain*: two nodes both believe they are the leader.
+  - Solution: Shutdown one of those if detected.
+- How to determine timeout?
+
+### Multi-Leader Replication
+Pitfall of leader-based replication: all writes must go though the leader. So 
+if one cannot connect to the leader (network cutoff for instance) write is 
+prohibited.
+
+Trade-off between single- and multi-leader configurations:
+- *Performance*: Single-leader config potentially has large latency as the 
+  leader may distant from the client.
+- *Tolerance of datacenter outages*: Single-leader config is a single point of 
+  failure.
+- *Tolerance of network problems*: Single-leader config is sensitive to network 
+  condition as writes are made synchronously over the inter-datacenter link.
+

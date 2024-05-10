@@ -1,4 +1,4 @@
-#set text(size: 13pt)
+#set text(size: 12pt)
 #set heading(numbering: "1.")
 #set page(numbering: "1")
 

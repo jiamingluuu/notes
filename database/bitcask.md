@@ -18,12 +18,12 @@ A Bitcask instance is a directory
 +-----------------------------------------+
 ```
 Each KV entry has the following fields:
-  - CRC (cyclic redundancy code) checksum
-  - timestamps
-  - key size
-  - value size
-  - key 
-  - value
+- CRC (cyclic redundancy code) checksum
+- timestamps
+- key size
+- value size
+- key 
+- value
 
 A *keydir* is  is a has table that maps every key in a Bitcask to a fixed-sized
 structure giving the file, offset, and size of the most recently written entry 
