@@ -211,7 +211,8 @@ Pros:
 - LSP-tree can be compressed better, the splitted node of B-tree potentially 
   leads to fragmentation on disk.
 
-$$\text{write amplification} = \frac{\text{data written to the storage device}}{\text{data written to the database}}$$
+$$\text{write amplification} 
+= \frac{\text{data written to the storage device}}{\text{data written to the database}}$$
 
 Cons:
 - Compaction process can sometime lag the ongoing rw.
@@ -280,7 +281,7 @@ Follower failure: Catch-up recovery
 - Use log to determine the latest transaction before failure occurred, then sync
   with the leader for all subsequent updates.
 
-Leader failure: Failover
+Leader failure: *Failover*
 - Promotes a follower to leader, configs clients so they sent write requests to 
   the new leader.
 - The promotion process can either happened manually, or automatically, in which
@@ -297,6 +298,29 @@ Problems with failover:
   - Solution: Shutdown one of those if detected.
 - How to determine timeout?
 
+#### Implementation of Replication Logs
+Statement-based replication
+- Leader logs every write request (statement) that it executes and sends that 
+  statement log to its followers.
+- But if the statement calls a nondeterministic function (`NOW()` for instance),
+  used an auto-incrementing column, or has side effects, then it fails.
+
+Write-ahead log (WAL) shipping
+- Log formed in B-tree or SSTable can be used to build the replica on another 
+  node.
+- Buf this make replication closely coupled to the storage engine: if the 
+  database changes its storage formate from one version to another, it is 
+  typically not possible to run different versions of the database.
+
+Logical (row-based) log replication
+- A logical log for a relational database is a sequence of records describing 
+  writes to database tables at the granularity of a row.
+  - On insertion, log contains new values of all columns
+  - On deletion, log contains information to identify the row deleted (e.g.
+    primary key).
+  - For updating, log contains information to identify the row to be updated, 
+    and the new values of all columns.
+
 ### Multi-Leader Replication
 Pitfall of leader-based replication: all writes must go though the leader. So 
 if one cannot connect to the leader (network cutoff for instance) write is 
@@ -310,3 +334,47 @@ Trade-off between single- and multi-leader configurations:
 - *Tolerance of network problems*: Single-leader config is sensitive to network 
   condition as writes are made synchronously over the inter-datacenter link.
 
+#### Handling Write Conflicts
+Most of the multi-leader replication handle  write conflict poorly, so the best 
+implementation is to *avoid conflicts*, rather than resolve.
+
+Database must resolve the conflict in a *convergent* way, so all the replica 
+arrive at the same final value when all changes have been replicated.
+- Given each write a unique ID, pick the write with the highest ID as the 
+  *winner*.
+- Given each replica a unique ID, and let writes that originated at a 
+  higher-numbered replica always take precedence.
+
+#### Multi-Leader Replication Topology
+![Replication Topology](./img/replication-topology.png)
+In circular and star topology, to prevent infinite replication loop, each node
+is given a unique identifier, and in the replication log, each write is tagged 
+with the identifiers of all the nodes it has passed through.
+
+Issue with multi-leader replication:
+- In star and circular topology, if just one node fails, it can interrupt the 
+  flow of replication messages between other nodes.
+- In all-to-all topology, it is possible that some replication messages may 
+  "overtake" others, due to the lag of network for instance. One possible 
+  solution is *version vectors*, will be discussed later.
+![Wrong Order of Replicas](./img/wrong-order-of-replicas.png)
+
+### Leaderless Replication
+Client send read and write query to several nodes in parallel.
+
+How does an unavailable node catch up when it comes back?
+- *Read repair*: When a client make a read from several nodes in parallel, it 
+  can detect stale responses. Client can notice the stale value can write the 
+  newer value back to that replica.
+- *Anti-entropy process*: Use a background process that constantly looks for 
+  differences in the data between replicas and copies any missing data from one 
+  replica to another.
+
+#### Quorums for reading and writing
+If there are $n$ replicas, every write must be confirmed by $w$ nodes to be 
+considered successful, and every read must query at least $r$ nodes for each 
+read.
+- If $w + r > n$, we call those rw *quorum reads and writes*.
+- Commonly choose $w = r = (n+1)/2$.
+
+## 6. Partition
