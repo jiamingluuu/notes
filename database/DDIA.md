@@ -383,6 +383,9 @@ read.
 ## 6. Partition
 - *Partition* are defined in such a way that each piece of data belongs to 
   exactly one partition.
+- Partition improves the scalability of a system as large dataset can be 
+  distributed across many disks, and the query load can be distributed across
+  many processors.
 - A *skewed partition* is one partition has more data or queries than others.
 - A partition with disproportionately high load is called a *hot spot*.
 
@@ -403,3 +406,53 @@ Hash function can evenly map keys to a random number.
 *Consistent hashing* is a technique used to distribute keys uniformly across a 
 cluster of nodes. The goal is minimizing the number of keys that needed to be 
 moved when nodes are added, removed from the cluster.
+
+#### Skewed Workloads and Relieving Hot Spots
+Although we can distribute key evenly by using hashing, the issue of hot spot 
+still remains in the case of all queries are rw to the same key, for instance,
+celebrities.
+
+### Partitioning and Secondary Indexes
+A secondary index is often used to searching for occurrences of a particular 
+value: find all action of user `123`, find all articles containing the word 
+`apple`.
+
+#### Partitioning Secondary Indexes by Document
+Each partition maintains its own secondary indexes, covering only the documents 
+in that partition. This is called *local index*.  Database automatically tag 
+each item. For instance, whenever a car is added to the database, adds it to 
+the list of document IDs for the index entry `color:red`. 
+- But because there is no guarantee for having the item with same tag in the 
+  same partition, so query needs to be sent to all partitions. This querying 
+  approach is called *scatter/gather*, which prone to tail latency 
+  amplification.
+
+#### Partitioning Secondary Indexes by Term
+Construct a *global index* that covers data in all partitions.
+- Global index must also be partitioned, for instance, colors starting with the 
+  letter `a` to `r` appears in partition 0, `s` to `z` appears in partition 1.
+- This is kind of index is called *term-partitioned*.
+- Faster reads as only need to request to the partition containing the term that 
+  it wants. 
+- Slower writes as single write request may affect multiple partitions of the 
+  index.
+
+### Rebalancing Partitions
+*Rebalancing* refers to the process of moving load from one node to another in 
+the cluster.
+#### Strategies for Rebalancing 
+Do not use the *hash mod N* strategy for rebalancing, where N is the number of 
+nodes.
+- Issue with this strategy is that when the number of node changes frequently,
+  rebalancing also happens frequently.
+
+Fixed number of partitions:
+- In this configuration, the number of partition is usually fixed when the 
+  database is first set up and not changed afterward.
+- If a node is added to the cluster, the new node can steal a few partitions 
+  from every existing node until partitions are fairly distributed once again.
+
+Dynamic partitioning:
+
+
+#### Operations: Automatic or Manual Rebalancing
