@@ -1,14 +1,17 @@
 # Skipped Sections
-1. Data Models and Query Languages
+2. Data Models and Query Languages
    - Query Languages for Dta
    - Graph-Like Data Models
      - Graph Queries in SQL
      - Triple-Stores and SPARQL
      - The Foundation: Datalog
-2. Storage and Retrieval
+3. Storage and Retrieval
    - Transaction Processing or Analytics?
    - Column-Oriented Storage 
-3. Encoding and Evolution
+4. Encoding and Evolution
+5. Replication
+   - Problems with Replication Log
+   - Leaderless Replication 
 
 # Part I. Foundations of Data Systems
 ## 1. Reliable, Scalable, and Maintainable Applications
@@ -378,3 +381,25 @@ read.
 - Commonly choose $w = r = (n+1)/2$.
 
 ## 6. Partition
+- *Partition* are defined in such a way that each piece of data belongs to 
+  exactly one partition.
+- A *skewed partition* is one partition has more data or queries than others.
+- A partition with disproportionately high load is called a *hot spot*.
+
+### Partitioning of Key-Value Data
+#### Partition by Key Range
+- Partition ranges are not necessarily be evenly distributed.
+- Partition boundaries can either manually chosen by an administrator or 
+  automatically set be database.
+- We can keep keys within each partition in sorted order.
+- The downside of key range partition is hot spot. 
+  - If we use timestamp as a key, then all keys within the same day leads to a 
+    hot spot. A solution is adding prefix for each timestamp.
+
+#### Partition by Hash of Key
+Hash function can evenly map keys to a random number. 
+- The advantage of performing range queries is lost.
+
+*Consistent hashing* is a technique used to distribute keys uniformly across a 
+cluster of nodes. The goal is minimizing the number of keys that needed to be 
+moved when nodes are added, removed from the cluster.
