@@ -1,6 +1,6 @@
 # Skipped Sections
 2. Data Models and Query Languages
-   - Query Languages for Dta
+   - Query Languages for Data
    - Graph-Like Data Models
      - Graph Queries in SQL
      - Triple-Stores and SPARQL
@@ -11,7 +11,8 @@
 4. Encoding and Evolution
 5. Replication
    - Problems with Replication Log
-   - Leaderless Replication 
+7. Transaction 
+   - Serializability
 
 # Part I. Foundations of Data Systems
 ## 1. Reliable, Scalable, and Maintainable Applications
@@ -383,6 +384,8 @@ read.
 ## 6. Partition
 - *Partition* are defined in such a way that each piece of data belongs to 
   exactly one partition.
+- The goal of partitioning is to spread the data and query load evenly across 
+  multiple machine, avoiding hot spots.
 - Partition improves the scalability of a system as large dataset can be 
   distributed across many disks, and the query load can be distributed across
   many processors.
@@ -453,6 +456,124 @@ Fixed number of partitions:
   from every existing node until partitions are fairly distributed once again.
 
 Dynamic partitioning:
+- Split a partition into two that approximately half of the data ends up on each 
+  side of the split if a partition grows to exceed a configured size
+- Conversely a partition merge with an adjacent partition if it shrink below 
+  some threshold.
+- Pros: Number of partition adapts to volume.
+- Cons: There is only one partition at the beginning, so all writes are 
+  processed by one node and keeping others idle. Cannot balance the load.
 
+Partitioning proportionally to nodes
+- When a new node joins the cluster, it randomly chooses a fixed number of 
+  existing partitions to split, and then takes ownership of one half of each of 
+  those split partition while leaving the other half of each partition in place.
 
-#### Operations: Automatic or Manual Rebalancing
+### Request Routing
+*Service discovery*: When data is partitioned across different nodes, question
+arises as how does the client knows which node to connect to while make request?
+The solution is diverse:
+- *Gossip protocol*: Requests can be sent to any node, and that node forwards 
+  them to the appropriate node for the requested partition.
+- Send all requests from clients to a routing tier first, which determines the 
+  node that should handle each request and forwards it accordingly.
+- Require that client be aware of the partitioning and the assignment of 
+  partitions to nodes.
+
+## 7. Transaction
+Transaction is a way for an application to group several reads and writes 
+together into a logical unit. Either transaction succeeds (*commit*), or it 
+fails (*abort, rollback*).
+
+### Concept of a Transaction
+#### The Meaning of ACID
+ACID principles are the safety guarantees that transaction provides, it 
+includes:
+- *Atomicity*: If a client wants to make several writes, but a fault occurs 
+  after some of the writes have been processed, the transaction is aborted and 
+  the database must discard or undo any writes it has made so far in the 
+  transaction.
+- *Consistency*: Having certain statements about your data (*invariants*) that 
+  must always be true.
+  - Consistency is a property of the application, for instance, it can be 
+    described as in an accounting system, credits and debits across all account
+    must always be balanced.
+- *Isolation*: Concurrent executing transactions are isolated from each other.
+- *Durability*: Once a transaction has been committed successfully, any data it 
+  has written will not be forgotten, even if there is a hardware fault or the 
+  database crashes.
+
+### Weak Isolation Levels
+Serializable isolation has a performance cost, so the constraint is loosed to
+weaker isolation levels which protect against some concurrency issue, but not 
+all. 
+
+Later, we are going to introduce read committed and snapshot isolation level, 
+where a read-only transaction is performed while concurrent write queries are 
+ongoing.
+
+#### Read Committed
+Read committed makes two guarantees:
+1. When reading from the database, you will only see data that has been 
+  committed (no dirty read).
+2. When writing to the database, you will only overwrite data that has been 
+  committed (no dirty write).
+
+No dirty read:
+![No dirty read](./img/no-dirty-read.png)
+
+No dirty write:
+![No dirty write](./img/no-dirty-write.png)
+
+Databases prevent dirty write by using row-level locks: when a transaction 
+wants to modify a particular object, it must first acquire a lock and holds it 
+until transaction is committed or aborted.
+
+Databases prevent dirty read by remembering both the old committed value and the 
+new value set by the transaction that currently holds the write lock.
+
+Anomaly appears as following:
+![Read skew](./img/read-skew.png)
+This issue is known as *read skew*. It is acceptable for online banking website
+scenario as user can refresh the webpage to avoid, but in the case like backups
+and analytic queries and integrity checks, it is unacceptable.
+
+#### Snapshot Isolation and Repeatable Read
+*Snapshot isolation* is a transaction sees all the data that was committed in 
+the database at the start of the transaction.
+
+To implement snapshot isolation, write locks are used to prevent dirty writes, 
+but reads do not require any locks. Moreover, the database potentially requires 
+to preform *Multi-version concurrency control (MVCC)*, where it maintains 
+multiple versions of an object side by side.
+
+Transaction IDs are used to decide which objects it can see and which are 
+invisible. It works as follows:
+1. At the start of each transaction, the database makes a list of all the other 
+   transactions that are in progress at that time. Any writes that those 
+   transactions have made are ignored, even if the transactions subsequently 
+   commit.
+2. Any writes made by aborted transactions are ignored.
+3. Any writes made by transactions with a later transaction ID are ignored, 
+   regardless of whether those transactions have committed.
+4. All other writes are visible to the application's queries.
+
+#### Preventing Lost Updates
+![Lost update](./img/lost-update.png)
+Lost update can be prevented by using atomic write operations, explicit locking,
+and compare-and-set.
+
+#### Write Skew and Phantoms
+*Write skew* can occur if two transactions read the same objects, and then 
+update some of those objects. Write skew is often triggered when:
+1. A `SELECT` query checks whether some requirement is satisfied by searching 
+   for rows that match some search condition.
+2. Depending on the result of the first query, the application code decides how
+   to continue.
+3. If the application decides to go ahead, it makes a write to the database and 
+   commits the transaction.
+
+*Phantom* is a write in one transaction changes the result of a search query in 
+another transaction.
+
+## 8. Consistency and Consensus
