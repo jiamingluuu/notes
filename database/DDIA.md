@@ -10,9 +10,14 @@
    - Column-Oriented Storage 
 4. Encoding and Evolution
 5. Replication
-   - Problems with Replication Log
-7. Transaction 
+   - Leaderless Replication 
+     - Limitations of Quorum Consistency 
+     - Sloppy Quorums and Hinted Handoff
+     - Detecting Concurrent Writes
+6. Transaction 
    - Serializability
+7. Consistency and Consensus
+   - Ordering Guarantees
 
 # Part I. Foundations of Data Systems
 ## 1. Reliable, Scalable, and Maintainable Applications
@@ -154,10 +159,18 @@ Limitations:
   `kitty000` and `kitty999`.
 
 ### SSTables and LSM-Trees
-Similar for bitcask having segment files, but with the an extra constraint: 
-- All the sequence of kv pairs is sorted by key.
-- The following algorithm described also known as LSM-Tree (log-structured 
-  merge-tree)
+LSM-tree has two parts: 
+- *Memtable*: An in-memory table for storing write queries
+- *SSTable*: Persistent data that flushed to disk. Each record is stored in 
+  order of key.
+
+On a writing query:
+- The query is stored in memtable. When memtable reaches a pre-determined 
+  threshold, it become immutable. Deletion is simply write a tombstone value.
+- *Minor compaction*: Immutable memtables are flushed to disk and become 
+  SSTable, all duplicate keys are merged.
+- *Major compaction*: When SSTable is too large, it also merged with another 
+  SSTable.
 
 On merging two SSTable:
 - Read input files side by side, and look at the first key in each file, copy 
@@ -167,17 +180,12 @@ On merging two SSTable:
   through all segment and in memory map).
 
 Key lookup:
+- On read, first try to find in memtable, if absent, find on disk.
 - Store a sparse key-indexing in memory. 
   - In terms of sparse, it means we don't need to record the indexing of all 
   keys, instead, we can skip several keys.
 - On finding a key, for instance `handiwork`, look for the offset for keys 
   `handbag` and `handsome`, then jump to `handbag` and scan from there.
-
-Constructing and maintaining SSTables:
-- Add the write query to a balanced tree called *memtable*
-- When memtable is too large, write it out to the disk as an SSTable file.
-- On read, first try to find in memtable, if absent, find on disk.
-- Run a merge process if needed.
 
 ### B-Trees
 Break the database down into fixed-size *blocks* or *pages*, 4KB each.
@@ -248,7 +256,7 @@ Key component consists of:
 # Part II. Distributed Data
 ## 5. Replication
 ### Readers and Followers
-A *Replica* is a copy of the database stored in each node.
+A *replica* is a copy of the database stored in each node.
 
 Leader-based replication (aka. active/passive or master-slave replication)
 - One of the replica is chosen to be *leader*. When clients' initiate write 
@@ -325,6 +333,34 @@ Logical (row-based) log replication
   - For updating, log contains information to identify the row to be updated, 
     and the new values of all columns.
 
+### Problems with Replication Lag
+In single-leader replication *replication lag* is referring to the delay 
+between a write happening on the leader and being reflected on a follower.
+
+#### Reading Your Own Writes
+*Read-after-write consistency* is a guarantee that if the user reloads the page, 
+they will always see any updates they submitted themselves.
+
+Methods of implementation:
+- Read modifiable data from the leader.
+- But if most of the data is modifiable, then we need to add another criteria 
+  on determine whether read from the leader or follower. For instance, we can 
+  use timestamp to determine: for one minute after last update, read from 
+  leader.
+
+#### Monotonic Reads
+![Read Stale Database](./img/read-stale-database.png)
+To prevent this issue, we can make sure each user always makes their reads from 
+the same replica.
+
+#### Consistent Prefix Read
+Suppose a third party, namely *Observer*, is monitoring the conversation between 
+*Mr. Poons* and *Mrs. Cake*, Observer may see the answer before the question 
+if some replica is slower than others.
+![Consistent Prefix Read](./img/consistent-prefix-reads.png)
+*Consistent prefix read* guarantees a sequence of writes happens in a certain 
+order, then anyone reading those writes will see them appear in the same order.
+
 ### Multi-Leader Replication
 Pitfall of leader-based replication: all writes must go though the leader. So 
 if one cannot connect to the leader (network cutoff for instance) write is 
@@ -375,6 +411,9 @@ How does an unavailable node catch up when it comes back?
   replica to another.
 
 #### Quorums for reading and writing
+A *quorum* is the minimum number of votes that a distributed transaction has to
+obtain in order to be allowed to perform an operation in a distributed system.
+
 If there are $n$ replicas, every write must be confirmed by $w$ nodes to be 
 considered successful, and every read must query at least $r$ nodes for each 
 read.
@@ -577,3 +616,116 @@ update some of those objects. Write skew is often triggered when:
 another transaction.
 
 ## 8. Consistency and Consensus
+*Consensus*: Getting all of the nodes to agree on something.
+
+*Eventual consistency (convergence)*: If one stop writing to the database and 
+wait for some unspecified length of time, then eventually all read requests 
+will return the same value.
+
+### Linearizability
+Make a system appear as if there were only one copy of the data, and all 
+operations on it are atomic.
+![Lost update](./img/lost-update.png)
+
+As the figure illustrates, all the operations excepts the last `read` perform 
+by client B are considered as linearizable. The last is not linearizable 
+because the `cas(x, 2, 4)` of client C operations already sets the value of 
+register `x` to 4, but the result of client B's read is 2.
+
+The CAP theorem
+- If your application *requires* linearizability, and some replicas are 
+  disconnected from the other replicas due to a network problem, then some 
+  replicas cannot process requests while they are  disconnected: they must
+  either wait until the network problem error is fixed, or return an error.
+  (Consistent but not available )
+- If your application *does not require* linearizability, then it can be written 
+  in a way that each replica can process requests independently, even if it is 
+  disconnected from disconnected from other replicas. (Available but not 
+  consistent)
+
+### Distributed Transactions and Consensus
+#### Atomic Commit and Two-Phase Commit (2PC)
+In single-node database, the transaction atomicity is determined by the commit 
+record: 
+- If present, then transaction is succeed (can be recovered from WAL if 
+  process crashed).
+- Otherwise rollback. 
+
+Whereas in multi-object transaction, sending a commit request to all of the 
+nodes is not enough. It could easily happens that the commit succeeds on some 
+nodes and fails on other nodes, which violates the atomicity guarantees.
+
+Two-phase commit (2PC) begins with the application reading and writing data on 
+multiple database nodes (aka *participants, cohort*) in the transaction. When 
+the application is ready to commit, the *coordinator*
+1. Commit-request phase: Sending *prepare* request to each node, 
+   asking if they are able to commit.
+2. Commit phase: 
+   - If all participants reply "yes", the coordinator sends out a *commit*
+     request in phase 2. 
+   - Otherwise if any participant replies "no", the coordinator sends out an 
+     *abort* request to all nodes in phase 2.
+
+However, if both a coordinator and participant is failed during the commit 
+phase, it is possible for the cluster ends up being an inconsistent state: the 
+failed participant may have already committed after receiving the request, 
+however, for the participants have to received the request, they have to wait 
+until the coordinator reconnect or be elected.
+
+Three-phase commit (3PC) is more fault-resilient by introducing an additional 
+phase, and we are assuming the network delay is bounded, and we can detect 
+whether a node is failed:
+1. Can-Commit Phase: The coordinator sends a Can-Commit message, asking each 
+   participant if they are ready to commit.
+2. Pre-Commit Phase: If all participant respond Yes, the coordinator broadcasts
+   a Pre-Commit message. Participants acknowledge the message and prepare to 
+   commit transaction.
+3. Do-Commit: Once the coordinator receives all acknowledgements, it sends a 
+   Do-Commit message, instructing participants to finalize the transaction.
+
+Remark:
+- If any of participants crashes during 2PC
+  - If any of the prepare requests fail or time out, the coordinator abort the 
+    transaction.
+  - If any of the commit or abort requests fail, the coordinator reties 
+    indefinitely.
+- If coordinate crashes during 2PC
+  - If crashes before the prepare request, abort.
+  - If crashes after the prepare request, wait to hear back from the 
+    coordinator. A participant's transaction in this stat is called *in doubt*
+    or *uncertain*.
+- 2PC is called a *blocking* atomic protocol since it can become stuck for the 
+  coordinator to recover.
+- 3PC is *non-blocking* but it assumes a network with bounded delay and nodes 
+  with bounded response time.
+- In general, non-blocking atomic commit requires a *perfect failure detector*,
+  a reliable mechanism for telling whether a node has crashed or not, which is 
+  impossible for network with unbounded delay. And this is why 2PC is still 
+  used.
+ 
+#### Fault-Tolerant Consensus
+A consensus algorithm must satisfy the following properties:
+- *Uniform agreement*: no two nodes decide differently.
+- *Integrity*: No node decides twice.
+- *Validity*: If a node decides value $v$, then $v$ was proposed by some node.
+- *Termination*: Every node that does not crash eventually decides some value.
+
+Every time the current leader is thought to be dead, a vote is started to elect
+a new leader:
+- The election is given an *epoch number*. If there were conflict between two 
+  different leaders in two different election, the leader with higher epoch 
+  number prevails.
+- Before the leader is allowed to decide anything, it must collect votes from a
+  *quorum* of nodes. For every decision that a leader wants to make, it must 
+  send the proposed value to the other nodes and wait for a quorum of nodes to 
+  respond in favor of the proposal.
+- If a vote on a proposal succeeds, at least one of the nodes that voted for it 
+  must have also participated in the most recent leader election.
+
+The limitation of consensus algorithms is they generally rely on timeouts to 
+detect failed nodes, But in environment with high variable network delay, it 
+often falsely believe the leader is failed dur to a transient network issue.
+
+Moreover, there are edge cases with Raft when there are one particular network 
+like that is consistently unreliable. Raft can get into situation where 
+leadership continually bounces between two nodes, so system never make progress.
