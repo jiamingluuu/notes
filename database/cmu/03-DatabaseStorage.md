@@ -34,9 +34,9 @@ collection of pages with types that are stored in random order.
 - Supported operations: Create/Get/Write/Delete Page
 - Must support a way of iterating through the pages.
 
-The DBMS maintains special pages that tracks the location of data pages in 
+The DBMS maintains special pages that tracks the location of data pages in
 the database files.
-- A group of special pages, *page directory*, are maintained by the DBMS.  
+- A group of special pages, *page directory*, are maintained by the DBMS.
   It records metadata about available space:
   - The number of free slots per page.
   - List of free/empty pages.
@@ -49,6 +49,7 @@ Every page contains a *header* of metadata about the page's content:
 - transaction visibility
 - etc...
 
+### Tuple-Oriented Storage
 For tuple-oriented storage, the most common layout scheme is called 
 *slotted pages*:
 - The slot array maps "slots" to the tuples' starting position offset.
@@ -63,3 +64,29 @@ each logical tuple a unique record identifier that represents its physical
 location in the database.
 - File id, page id, slot number...
 - Application should never rely on these IDs to mean anything.
+
+When insert a new tuple:
+- Check page directory to find a page with a free slot.
+- Retrieve the page from disk.
+- Check slot array to find empty space in page that will fit.
+
+Update an existing tuple using its record id:
+- Check page directory to find location of page.
+- Retrieve the page from disk.
+- Find offset in page using slot array.
+- If new data fits, overwrite existing data, otherwise mark existing tuple as 
+  deleted and insert a new version in a different page.
+
+Problems with tuple-oriented storage:
+- Fragmentation: Pages are not fully utilized.
+- Useless Disk IO: DBMS must fetch the entire to update on tuple.
+- Random Disk IO: Worse case scenario when updating multiple tuple is that 
+  each tuple is on a separate page.
+
+### Log-Structured Storage
+As the application makes changes to the database, the DBMS appends log records
+to the end of the file without checking previous log records.
+
+Write and delete operation is simply appends the log with a key/value pair.
+## Index-Organized Storage
+## Data Representation
