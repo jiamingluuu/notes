@@ -86,7 +86,24 @@ Problems with tuple-oriented storage:
 ### Log-Structured Storage
 As the application makes changes to the database, the DBMS appends log records
 to the end of the file without checking previous log records.
+- Write and delete operation is simply appends the log with a key/value pair.
+- To read a tuple with a given id,the DBMS finds the newest log record 
+  corresponding to that id, where we maintain an index that maps a tuple id to 
+  the newest log record.
 
-Write and delete operation is simply appends the log with a key/value pair.
+DBMS regularly compact pages to reduce wasted space. There are two was of doing
+it:
+- *Universal Compaction*: Select two adjacent sorted log file, and perform a 
+  merge-sort-like compaction process.
+- *Level Compaction*: Maintains different "levels" of log-structured files, once 
+  the file size expands to a certain size, promotes it to a higher level by 
+  merging with a file that is in the same level.
+
+Downside:
+- Write-amplification: for a single write, we may perform multiple disk rw.
+- Compaction is expensive.
+
 ## Index-Organized Storage
+DBMS stores a table's tuples as the value of an index data structure.
+
 ## Data Representation

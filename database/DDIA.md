@@ -23,11 +23,13 @@
 ## 1. Reliable, Scalable, and Maintainable Applications
 *Data-intensive*, on the contrary of compute-intensive, application is mainly 
 responsible for:
-- store data (database)
-- remember result of expensive operations (cache)
-- allow users to search data by keywords and filter data (search indexes)
-- send a message (async) to another process (stream processing)
-- periodically crunch a large amount of accumulated data (batch processing)
+- Store data (database)
+- Remember result of expensive operations (cache)
+- Allow users to search data by keywords and filter data (search indexes)
+- Send a message (async) to another process (stream processing)
+- Periodically crunch a large amount of accumulated data (batch processing)
+In general, data-intensive applications enable jobs can be performed within 
+loosely embedded nodes in a cluster, often demanding on IO throughput.
 
 ### Metrics of Distributed Systems
 #### Reliability
@@ -51,16 +53,26 @@ The system's ability to cope with increased load.
 - *Performance* can be characterized by
   - Throughput: The number of records we can process per second.
   - Response time: The tie between a client sending a request and receiving
-  the response.
+    the response.
     - NOTE: *Latency* characterizes the actual time of handling the request,
-    which is measured at the backend, whereas response time normally counts
-    the time spent for the entire request/response cycle.
+      which is measured at the backend, whereas response time normally counts
+      the time spent for the entire request/response cycle.
 - To cope with load, we can either:
   - *Scaling up*: Developing more powerful machines.
   - *Scaling down*: Distributing the load across multiple smaller machines.
   - There is no one-size-fits -all scalable architecture.
-  - *Stateless service*: Each service is handled independent from the state of 
-  local host.
+  - *Stateless service*: Services that do not require server preserve the 
+    request information and is independent of the server context. 
+    - Often used in Web services and RESTful APIs. 
+    - High extensibility and availability.
+  - *Stateful service*: Services that require the server context to handle the 
+    request. 
+    - Trade-off: easier to fulfill the need of a certain kinds of services 
+      (session management and state tracing for instance). Because the service 
+      context is preserve at the local host, so the continuity and consistency 
+      can be easily guaranteed. However, stateful services are low in 
+      extensibility, availability, and maintainability.
+    - Often used in database services, event stream (Kafka).
 
 #### Maintainability 
 Fixing bugs, keeping its systems operational, investigating failures...
@@ -73,39 +85,46 @@ Design principles for software systems:
 ## 2. Data Models and Query Languages
 ### Relational Model vs. Document Model
 #### Relational Model
+Relational model is a data storing technique based on relation algebra. Data is 
+managed in the DBMS in the form of a two-dimensional table (aka relation). Each 
+relation consists of row (record) and column (property).
+
 For instance, SQL, organizes data into *relations* (an unordered collection of 
 tuples).
 - Pros: 
-    - Hides implementation detail behind a cleaner interface.
-    - Generalizable, fits the diverse use cases.
+  - Hides implementation detail behind a cleaner interface.
+  - Generalizable, fits the diverse use cases.
 - Cons: 
-    - *Impedance mismatch*: Awkward translation layer is required between the
+  - *Impedance mismatch*: Awkward translation layer is required between the
     objects in the application code and the database model of tables, rows,
     and columns. 
 
-NoSQL
+##### NoSQL
+Stands for Not Only SQL, it is a non-relational DBMS  model. Often used in the 
+scenario involving large dataset, high-throughput of data read and write.
 - Pros: Easy to achieve greater scalability, open source, can handle
   queries that are not well supported in relational model.
-- Cons: Does not support ACID transactions across multiple document.
+- Cons: Does not support ACID transactions across multiple document. Lack of 
+  standardization so it is hard to migrate data from one model to another.
 
 
-#### Document Model
+Document Model
 - Data structure like a resume, a self-contained document.
 - Normally stored as JSON and XML.
 - Pros:
   - JSON has better *locality* than the multi-table schema used in relational
-  model. While fetching data, we do not need to perform multiple queries
-  or/and join subordinate tables.
+    model. While fetching data, we do not need to perform multiple queries
+    or/and join subordinate tables.
   - We can explicitly write down a one-to-many relationships.
 - Cons:
   - However, it is hard to perform *normalization* (the removal of
-  duplication) where many-to-one relation is required. Particularly,
-  `JOIN` operation in document model is slow.
+    duplication) where many-to-one relation is required. Particularly,
+    `JOIN` operation in document model is slow.
   - Cannot directly refer to a nested item within a document.
 - MongoDB, RethinkDB, CouchDB.
 
-#### Graph-Like Data Model
-A good way of expressing many-to-many relationships.
+Graph-Like Data Model:
+- A good way of expressing many-to-many relationships.
 
 A graph consists of:
 - *Vertices* V (aka. nodes, entities), consists of 
@@ -128,7 +147,7 @@ A graph consists of:
 *Index* is an additional structure, that is derived from the primary data, 
 which develops an efficient way of key lookup.
 - Tradeoff: well-chosen indexes speed up read queries, but every index slows 
-down writes.
+  down writes.
 
 ### Hash Indexes
 Keep an in-memory hash map where every key is mapped to a byte offset in the 
@@ -141,12 +160,12 @@ A log-structured storage engine that
   it reaches a certain size. Keys are mapped (using hash) to the file offset of 
   each segment file.
   - On key lookup, we check the most recent segment, and if not present, check 
-  the second-recent and so on.
+    the second-recent and so on.
   - *File formate*: Binary, encodes each record with the length of string, then 
-  followed by the row data
+    followed by the row data
   - *Deleting records*: Overwrite a *tombstone*
   - *Crash recovery*: Restore each segment's hash map by reading the entire 
-  segment file, noting the offset of the most recent value for every key.
+    segment file, noting the offset of the most recent value for every key.
     - A snapshot of each segment's hash map is stored to speed up this process.
   - *Partially written records*: add checksum.
   - *Concurrency control*: Enforcing only one writer thread.
@@ -161,7 +180,7 @@ Limitations:
 ### SSTables and LSM-Trees
 LSM-tree has two parts: 
 - *Memtable*: An in-memory table for storing write queries
-- *SSTable*: Persistent data that flushed to disk. Each record is stored in 
+- *SSTable*: Persistent data that flushed to disk. Each record is stored in the
   order of key.
 
 On a writing query:
@@ -282,11 +301,11 @@ Leader-based replication (aka. active/passive or master-slave replication)
 1. Take a consistent snapshot of the leader's database at some point in time.
 2. Copy the snapshot to the new follower node.
 3. The follower connects to the leader and requests all the data changes that 
-   have happened since the snapshot was taken. Assume the snapshot is associated
-   with an exact position in the leader's replication log.
+  have happened since the snapshot was taken. Assume the snapshot is associated
+  with an exact position in the leader's replication log.
 4. When the follower has processed the backlog of data changes since the 
-   snapshot, we say it has *caught up*. After this stage, the newly set-up-node
-   can process data changes from the leader as they happen.
+  snapshot, we say it has *caught up*. After this stage, the newly set-up-node
+  can process data changes from the leader as they happen.
 
 #### Handling Node Outages
 Follower failure: Catch-up recovery
