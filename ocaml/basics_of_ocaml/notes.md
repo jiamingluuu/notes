@@ -357,6 +357,84 @@ the original base case's return value as the initial value of the accumulator.
 - Change the helper function's recursive case. It now needs to do the extra 
 work on the accumulator argument, before the recursive call.
 
+## Printing 
+The function 
+```ml
+print_endline
+```
+is used to print a line in OCaml. It has type
+```ml
+string -> unit = <fun>
+```
+
+To print multiple lines, the following are acceptable:
+```ml
+let () = print_endline "Camels" in
+let () = print_endline "are" in
+print_endline "bae";;
+
+let _ = print_endline "Camels" in
+let _ = print_endline "are" in
+print_endline "bae";;
+
+print_endline "Camels";
+print_endline "are";
+print_endline "bae";;
+```
+
+The single semicolon `;` in the last example is used to chain together multiple 
+functions that return unit. The expression `e1; e2` first evaluats `e1`, which 
+should evaluate to `()`, then discards that value and evaluates `e2`.
+
+### Ignore
+The function
+```ml
+ignore
+```
+maps every incoming parameter to `()`, and hence it has type
+```ml
+'a -> uint = <fun>
+```
+
+Consider `e1 ; e2`, if `e1` is not evaluated to `()`, the compiler gives us a
+warning as a potentially useful value is wasted. To disable the warning, use
+```ml
+(ignore 3) ; 5;;
+```
+
+## Debugging
+### Debugging in OCaml 
+There are two main ways of debugging in OCaml
+1. Print
+```ml
+let inc x = x + 1;;
+
+(* Change it into *)
+let inc x =
+  let () = print_int x in
+    x + 1;;
+```
+
+2. Function trace
+```ml
+let rec fib x = if x <= 1 then 1 else fib (x - 1)  + fib(x - 2);;
+#trace fib;;
+
+(* Evaluating fib 2 gives: *)
+fib <-- 2
+fib <-- 0
+fib --> 1
+fib <-- 1
+fib --> 1
+fib --> 2
+```
+
+
+
+
+
+
+
 
 
 
