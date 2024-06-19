@@ -1,4 +1,8 @@
 ---
+Title: The Basics of OCaml
+Brief: This notes covers the fundamental ascpects of OCaml, including the 
+  basic usage of expression, function, as well as how to debug and compile 
+  a OCaml program.
 Created date: Jun. 18, 2024
 Author: Jiaming Lu
 Tags: Programming Language, Functional Programming, OCaml
