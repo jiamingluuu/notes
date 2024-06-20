@@ -125,9 +125,24 @@ let rec sum_plus_acc (acc : int) (l : int list) : int =
   | [] -> acc
   | x :: xs -> x + (sum_plus_acc (acc + x) xs)
 
-let sum_tr : int list -> int = 
+let sum_tr : int list -> int =
   sum_plus_acc 0
 ```
+
+## Variants
+Syntax:
+```ml
+type t = C1 | ... | Cn
+```
+
+Dynamic semantics:
+- A constructor is already value is simply its name.
+
+Static semantics:
+- If `t` is a type defined as `type t = ... | C | ...`, then `C : t`.
+
+## Unit Testing with OUnit 
+
 
 
 
