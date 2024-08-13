@@ -1,2 +1,4 @@
 learning_log/*
 .vscode/*
+.obsidian/
+.DS_Store

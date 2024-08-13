@@ -37,15 +37,10 @@ int main() {
 ```
 
 *Remark:*
-- When using `template <int N>`, `N` is a constant at compile-time. Compiler
-    therefore can generates a snippets of code for each N, can perform
-    optimization individually.
-- Whereas then passing N as a parameter into the function, for instance:
-    `func(int N)`, compiler cannot optimize.
-- Be careful with template, abusing the use of template lags the compiling
-    time.
-- It is not recommended to separate the definition and implementation of
-    template.
+- When using `template <int N>`, `N` is a constant at compile-time. Compiler therefore can generates a snippets of code for each N, can perform optimization individually.
+- Whereas then passing N as a parameter into the function, for instance: `func(int N)`, compiler cannot optimize.
+- Be careful with template, abusing the use of template lags the compiling time.
+- It is not recommended to separate the definition and implementation of template.
 
 Template is lazy evaluated. Sometimes a pseudo-template is used to reduce
 compiling time.
@@ -67,19 +62,14 @@ In non-rigorous speaking
 
 ### `const` keywords
 `const` annotates a read-only variable.
-- `int const *` declares a pointer to a constant integer. We can change the 
-    integer that the pointer pointing to, but cannot change the integer value.
-- `int * const` declares a constant pointer to an integer. We can change the 
-    integer value, but not the pointer value.
+- `int const *` declares a pointer to a constant integer. We can change the integer that the pointer pointing to, but cannot change the integer value.
+- `int * const` declares a constant pointer to an integer. We can change the integer value, but not the pointer value.
 
 ### Type decay, declare, and etc
-`std::decay_t` function can be used to decay the reference type of a variable. 
-For instance, `std::decay_t<int &>` has the same type with `int`. It basically 
-unwrap a variable type from reference and `const` keywords.
+`std::decay_t` function can be used to decay the reference type of a variable. For instance, `std::decay_t<int &>` has the same type with `int`. It basically unwrap a variable type from reference and `const` keywords.
 
 `decltype` function can be used to derive the return type of an expression.
-- This function often used together with `auto` to derive the un-decayed type 
-    of a function return type.
+- This function often used together with `auto` to derive the un-decayed type of a function return type.
 ```cpp
 decltype(auto) foo() {
     int &x = 1;
@@ -152,8 +142,7 @@ auto twice = [] (int n) {
 };
 ```
 
-Lambda expression can capture the variable at the same scope when function is 
-defined, this feature is called *closure*.
+Lambda expression can capture the variable at the same scope when function is defined, this feature is called *closure*.
 ```cpp
 int fac = 2;
 int counter = 0;
@@ -162,10 +151,7 @@ auto twice = [&] (int n) {  // `&` is a mutable reference
     return n * fac;
 };
 ```
-Notice that we often pass a lambda expression as a const reference to another 
-function. This is because as more variables are captured, the size of the 
-lambda expression increases. For instance, the `twice` expression above is 
-16 bytes sized, because two pointers (`fac` and `counter`) are captured.
+Notice that we often pass a lambda expression as a const reference to another function. This is because as more variables are captured, the size of the lambda expression increases. For instance, the `twice` expression above is 16 bytes sized, because two pointers (`fac` and `counter`) are captured.
 
 The abuse of lambda expression causes dangling pointer
 ```cpp
@@ -182,8 +168,7 @@ int main() {
     return 0;
 }
 ```
-We should ensure the lifetime of lambda expression instance is shorter than 
-the variable captured.
+We should ensure the lifetime of lambda expression instance is shorter than the variable captured.
 
 And to solve this issue, we can use the following to pass by value:
 ```cpp
@@ -195,11 +180,7 @@ auto make_twice(int fac) {
 ```
 
 ### Preventing abuse of template for lambda expression
-Because we do not know the type of a lambda expression, so template is often 
-used together with lambda expression. But sometimes, we may want to separate 
-the function declaration and implementation, or want to reduce the compiling 
-time. In this case, `std::function` or `std::any` can be used to turn the 
-expression into a virtual function.
+Because we do not know the type of a lambda expression, so template is often used together with lambda expression. But sometimes, we may want to separate the function declaration and implementation, or want to reduce the compiling time. In this case, `std::function` or `std::any` can be used to turn the expression into a virtual function.
 ```cpp
 void call_twice(std::function<int(int)> const &func) {
     ...
@@ -207,8 +188,7 @@ void call_twice(std::function<int(int)> const &func) {
 ```
 
 ### Use `auto` together with lambda expression
-The followings are equivalent. Lambda expression with `auto`-typed parameter is 
-also lazy evaluated.
+The followings are equivalent. Lambda expression with `auto`-typed parameter is also lazy evaluated.
 ```cpp
 auto twice = [] (auto n) {
     return n * 2;

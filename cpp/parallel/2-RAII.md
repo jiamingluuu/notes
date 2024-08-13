@@ -60,9 +60,7 @@ int main() {
 
 The `explicit` keyword
 
-`explicit` can be used for annotate cpp class constructor to forbid implicit 
-invocation of construction. For instance
-
+`explicit` can be used for annotate cpp class constructor to forbid implicit invocation of construction. For instance
 ```cpp
 struct Pig {
     std::string name;
@@ -101,18 +99,15 @@ Difference between using `()` and `{}` for initialization
 - We should never use the default constructor in practice, delete it manually.
 
 And also, the followings are recommended:
-1. if destructor is defined, copy constructor and copy assignment function 
-    should be defined
+1. if destructor is defined, copy constructor and copy assignment function should be defined
 2. if copy constructor is defined, define or delete copy assignment function
 3. if move constructor is defined, define or delete move assignment function
-4. if copy constructor or copy assignment is defined, define copy constructor or 
-    move assignment 
+4. if copy constructor or copy assignment is defined, define copy constructor or move assignment 
 
 ## Deep copy, shallow copy, and move
 - shallow copy is just a reference 
 - deep copy is copy all the value from one to another
-- move is copy all the value from one to another, and empty the original data,
-    it is just a change of pointer, so has O(1) time complexity.
+- move is copy all the value from one to another, and empty the original data, it is just a change of pointer, so has O(1) time complexity.
 
 *Remark* 
 In the following cases, move is used
@@ -133,11 +128,8 @@ In the following cases, deep copy is used
   a smart pointer that encapsulates class instance, and deletes the copy function. 
 
   But what if we want to use or manipulates the pointer? The answer is 
-  - use `p.get()` for a mutable reference. This returns the naive pointer to the 
-      object p, that is `*p`.
-  - or simply use `std::move(p)` to move the ownership to the caller 
-      function/object. But if we still want to access the variable at the original 
-      place, we can do the followings:
+  - use `p.get()` for a mutable reference. This returns the naive pointer to the object p, that is `*p`.
+  - or simply use `std::move(p)` to move the ownership to the caller function/object. But if we still want to access the variable at the original place, we can do the followings:
 ```cpp
 std::vector<std::shared_ptr<C>> objlist;
 
@@ -162,14 +154,10 @@ int main() {
 ```
 
 ### shared_ptr
-With all the functionality of `unique_ptr`, add an atomic counter (that is 
-initialized with value 1) to counts owner. Free the encapsulated instance when 
-the counter is 0.
+With all the functionality of `unique_ptr`, add an atomic counter (that is initialized with value 1) to counts owner. Free the encapsulated instance when the counter is 0.
 
 *Remark*
-- `shared_ptr` is less efficient than the primitive pointer and `unique_ptr`.
-    Because we need hardware instructions to support the increment and decrement
-    of the counter.
+- `shared_ptr` is less efficient than the primitive pointer and `unique_ptr`. Because we need hardware instructions to support the increment and decrement of the counter.
 - cyclic reference would cause the pointer cannot be freed
 ```cpp
 struct C {
@@ -202,11 +190,8 @@ int main() {
 *Remark*
 To conclude, we recommend use smart pointers in the followings way:
 - `unique_ptr`: when the object O is *only* owned by user U
-- primitive pointer: when object O is owned by other user S, but O is guaranteed 
-    to be freed before S is freed.
+- primitive pointer: when object O is owned by other user S, but O is guaranteed to be freed before S is freed.
 - `shared_ptr`: when multiple users are sharing the ownership of object O
-- `weak_ptr`: when user U does not have the ownership of object O, and 
-    U is not freed after O is freed.
+- `weak_ptr`: when user U does not have the ownership of object O, and U is not freed after O is freed.
 
-In practice, we often use `shared_ptr` and `weak_ptr` in pair, `unique_ptr` and 
-primitive pointer in pair.
+In practice, we often use `shared_ptr` and `weak_ptr` in pair, `unique_ptr` and primitive pointer in pair.

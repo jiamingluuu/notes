@@ -1,7 +1,5 @@
 # Compiler Optimization
->> The followings are only suggestions. Optimization is hard to control, so 
-experiments should be carried out to examine which method boost performance the 
-best.
+>> The followings are only suggestions. Optimization is hard to control, so experiments should be carried out to examine which method boost performance the best.
 ## AT&T typed assembly
 suffix is used to indicates the bit of variable assignment
 - `b` is used for byte, 8 bits
@@ -19,8 +17,7 @@ the calculation of linear function on x86 is fast, this is because we have
 ```s
 leal    (%rdi,%rsi,8), %eax
 ```
-`leal` instruction stands for load effective address, the code above assigns
-`eax = rdi + rsi * 8`. `leal` is particularly useful for array indexing.
+`leal` instruction stands for load effective address, the code above assigns `eax = rdi + rsi * 8`. `leal` is particularly useful for array indexing.
 
 ```cpp
 int func(int *a, std::size_t b) {
@@ -39,13 +36,10 @@ float func(float a, float b) {
 ```
 `addss` has tree parts
 - `add`, addition
-- first `s`, scalar, indicating only calculating the lowest bits. On the 
-    contrary is `p`, packed, calculates all the bits of a xmm register.
-- second `s`, single-precision floating number. On the contrary of `d` for 
-    double.
+- first `s`, scalar, indicating only calculating the lowest bits. On the contrary is `p`, packed, calculates all the bits of a xmm register.
+- second `s`, single-precision floating number. On the contrary of `d` for double.
 
-The `addps` is an example of simd (single-instruction multiple-data) 
-instruction. We assume it is four times faster than a single `addss`.
+The `addps` is an example of simd (single-instruction multiple-data) instruction. We assume it is four times faster than a single `addss`.
 
 ## What can compiler do for optimization?
 ### Algebraic calculation simplification
@@ -69,8 +63,7 @@ int func() {
 }
 ```
 
-Normally, containers that are stored on heap will not be optimized, for instance
-in std namespace: 
+Normally, containers that are stored on heap will not be optimized, for instance in std namespace: 
 - vector, map, set, function, any, 
 - unique_ptr, shared_ptr, weak_ptr
 
@@ -82,8 +75,7 @@ To enforce the optimization, we can use `constexpr`.
 
 ### inline
 Functions can be classified as 
-- External, those only contains a declaration in the current file, and 
-    implementation in other file. Compiler will generate a `@PLT` suffix.
+- External, those only contains a declaration in the current file, and implementation in other file. Compiler will generate a `@PLT` suffix.
 - Internal, those implementation is in the same file.
 
 ### Write to memory
@@ -108,16 +100,12 @@ void func(int *a) {
 ```
 
 *Remark*
-When designing a data structures, data structure should be compact (data are 
-close to each other), aligned with 16 bytes or 32 bytes, when designing a data 
-structure. So compiler is easy to perform optimization by using simd 
-instructions.
+When designing a data structures, data structure should be compact (data are close to each other), aligned with 16 bytes or 32 bytes, when designing a data structure. So compiler is easy to perform optimization by using simd instructions.
 
 ### For loop
 *Hot* codes are those assessed frequently, on the contrary of *cold*.
 
-`__restrict` keyword indicates two pointers does not points to an overlapped
-memory region.
+`__restrict` keyword indicates two pointers does not points to an overlapped memory region.
 ```cpp
 void func(float *__restrict a, float *__restrict b) {
     for (int i = 0; i < 1024; i++) 
@@ -163,8 +151,7 @@ void func(float *a) {
 ```
 
 ### struct
-Make the size of structs be a power of 2, it is easy for vectorized 
-optimization.
+Make the size of structs be a power of 2, it is easy for vectorized optimization.
 
 An AOS (array of struct) example:
 ```cpp
@@ -232,8 +219,7 @@ struct X {
     std::vector<float> z;
 };
 ```
-but we need to make sure once one of the vector is pushed with element, all the
-other vectors should also be pushed.
+but we need to make sure once one of the vector is pushed with element, all the other vectors should also be pushed.
 
 ### Numerical methods
 ```cpp
@@ -270,9 +256,7 @@ Always use the math function from std library, because
 - `fabs` an `dabs` only accepts float and double.
 - `std::abs` has overload on both int, float and double.
 
-`-ffast-math` compiling flag is used to let compiler do more optimization on 
-numerical computations, ignore handling errors like dividing by zero and 
-taking square root of a negative.
+`-ffast-math` compiling flag is used to let compiler do more optimization on numerical computations, ignore handling errors like dividing by zero and taking square root of a negative.
 
 ## Others
 Use `-O3` in CMake
