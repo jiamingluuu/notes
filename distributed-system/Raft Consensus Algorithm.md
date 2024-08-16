@@ -1,4 +1,4 @@
-# Raft Basics
+# Raft basics
 Raft algorithm is summarized into the following:
 ![Raft All in One](./img/raft-all-in-one.png)
 
@@ -17,7 +17,7 @@ In Raft, each server is in one of three states at a given instance of time:
 
 Raft abstract time into the notion of *term*. Each term begins with an *election*, in which one or more candidates attempt to become leader. Each server stores a *current term* number that increases monotonically over time.
 
-## Leader Election
+## Leader election
 ![State Transition](./img/raft-state-transition.png)
 
 When servers are initially up, they begin as follower. Until they are timeout on not receiving leaders' heartbeat, they become a candidate and begins leader election, where:
@@ -28,7 +28,7 @@ When servers are initially up, they begin as follower. Until they are timeout on
   - Fails the election by receiving a `AppendEntries` RPC from other server.
   - Split the vote and restart the election when election timeout (randomly chosen from a fixed time interval, 120-300ms for instance).
 
-## Log Replication
+## Log replication
 The leader serves all the client's requests which each of them contains a command to be executed by the replicated state machines. The leader appends the command to its log as a new entry.
 
 Log Matching Property:
@@ -59,12 +59,12 @@ Entry RPC in Raft protocol contains `term` to detect stale leader:
 - If the receiver's term is older
   - Receiver steps done to follower and updates its term, processes the RPC. 
 
-# Client Protocol
+# Client protocol
 Client can send request to the leader and receives the response only when the command is logged, committed, and executed on the leader's state machine.
 - If client does not know who is the leader, he can communicate with any of the server, and server will tell who's the leader.
 - If leader crashes, a new leader will be elected and therefore client can redo the stuff we have introduced above.
 
-# Cluster Membership Changes
+# Cluster membership changes
 ![Two-phase protocol for membership change](./img/raft-cluster-membership-change.png)
 
 Raft use two-phase protocol when cluster membership changing. When the leader receives a request to change the configuration from $C_{old}$ to $C_{new}$:
@@ -75,7 +75,7 @@ Raft use two-phase protocol when cluster membership changing. When the leader re
 - Once $C_{old, new}$ has been committed, the leader create a log entry of $C_{new}$ entry at and commits it to a majority of $C_{new}$.
 - Once a server receives the new configuration, use it immediately for all future decisions (no matter committed or not).
 
-# Log Compaction
+# Log compaction
 When perform log compaction in Raft:
 - The entire system state is written to a snapshot on stable storage, then the log up to that point is discarded.
 - A small amount of metadata is included in the snapshot, which are used in `AppendEntries` RPC consistency check:
@@ -85,3 +85,38 @@ When perform log compaction in Raft:
 The leader uses a new RPC called `InstallSnapshot` to send snapshots to followers that are too far behind:
 - If follower receives a snapshot containing new information not already in the recipient's log, the follower discards its entire log.
 - If the received snapshot describes a prefix of the follower's log, entries covered by the snapshot are deleted but entries following the snapshot are still valid.
+
+# Possible optimization on Raft protocol
+## Implementing linearizability semantics
+### At-least-once semantics
+_At-least-once semantics_ is one of the commonly arisen issue in stateful distributed systems:
+- when client sends a request to the server, server executes the requests, and send the response back to the client. However, the response is corrupted due to unknown reason(s). Client re-sends the request. 
+- duplicate commands can manifest in subtle ways that client can recover from.
+### Implementation details
+We can implement linearizable semantics in Raft: 
+- Client assign an unique identifier to each command.
+- Each server's state machine maintain a _session_ for each client.
+- The session tracks the latest serial number processed for the client, along with associate response.
+- If a server receives a command whose serial number has already been executed it is respond immediately without re-executing the request.
+> _Linearizable Semantics_:each operation appears execute instantaneously, exactly once, at some point between its invocation and its response.
+### Issues on the provided implementation
+**Issue 1:** Session expiration
+Because disk resource is limited, we cannot keep track of the session data forever, a timeout for session expiration is needed. 
+- Option 1: Set a upper bound on number of sessions and perform an eviction based on LRU policy.
+- Option 2: Use an agreement of based on a preset timeout duration. During inactive period, client sends a keep-alive request to the server, otherwise the session expires.
+
+**Issue 2:** Client continuously operations when the session was expired.
+Implements a `RegisterClient` RPC that allocates a new client session and returns the session id to the client.If the server receives a command with unregistered id, respond an error to the client.
+
+## Pre-vote phase
+On network partitioning, it is possible that we have two local network in which one of them consists of quorum number of nodes and another does not. 
+- The region reaches quorum can properly elects a leader on every term.
+- Whereas the region does not reach quorum will constantly split the vote and increases its term number. 
+When the network resumes, because the servers did not reach quorum have a term number that is much larger than those coming from another partition, servers from the other partition will step down and starts a new round of election. This decreases availability. 
+
+The introduction of pre-vote phase is used to prevent such issue. On timeout for not receiving leader heartbeat, the node enters pre-vote phase, in which:
+- it asks other servers whether its log was up-to-date enough to get their vote. This is aka _pre-vote_ check.
+- the node increments its `currentTerm` and enters a election only if the node receives quorum number of acknownledgement response.
+
+## Check quorum 
+

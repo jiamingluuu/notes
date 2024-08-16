@@ -459,10 +459,6 @@ Make a system appear as if there were only one copy of the data, and all operati
 
 As the figure illustrates, all the operations excepts the last `read` perform by client B are considered as linearizable. The last is not linearizable because the `cas(x, 2, 4)` of client C operations already sets the value of register `x` to 4, but the result of client B's read is 2.
 
-The CAP theorem
-- If your application *requires* linearizability, and some replicas are disconnected from the other replicas due to a network problem, then some replicas cannot process requests while they are  disconnected: they must either wait until the network problem error is fixed, or return an error. (Consistent but not available )
-- If your application *does not require* linearizability, then it can be written in a way that each replica can process requests independently, even if it is disconnected from disconnected from other replicas. (Available but not consistent)
-
 ### Distributed Transactions and Consensus
 #### Atomic Commit and Two-Phase Commit (2PC)
 In single-node database, the transaction atomicity is determined by the commit record: 
