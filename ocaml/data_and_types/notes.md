@@ -70,7 +70,7 @@ Data type patterns:
 - `(p1, p2)`
 - `{f1 = p1; f2 = p2}`
 
-```ml
+```ocaml
 let rec sum xs =
   match xs with
   | [] -> 0
@@ -88,7 +88,7 @@ let rec append lst1 lst2 =
 ```
 
 Notice that OCaml has built-in list appending operator
-```ml
+```ocaml
 [1; 2; 3] @ [4; 5; 6];;
 (* Gives [1; 2; 3; 4; 5; 6] *)
 ```
@@ -103,7 +103,7 @@ Notice that OCaml has built-in list appending operator
 
 ### (Not) Mutating Lists
 Lists are immutable, in the following code 
-```ml
+```ocaml
 let inc_first lst =
   match lst with
   | [] -> []
@@ -114,7 +114,7 @@ shared for each function call.
 
 ### Tail Recursion
 Tail recursion also can be employed in pattern matching
-```ml
+```ocaml
 let rec sum (l : int list) : int = 
   match l with 
   | [] -> 0 
@@ -131,7 +131,7 @@ let sum_tr : int list -> int =
 
 ## Variants
 Syntax:
-```ml
+```
 type t = C1 | ... | Cn
 ```
 

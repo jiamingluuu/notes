@@ -98,7 +98,7 @@ We can implement linearizable semantics in Raft:
 - Each server's state machine maintain a _session_ for each client.
 - The session tracks the latest serial number processed for the client, along with associate response.
 - If a server receives a command whose serial number has already been executed it is respond immediately without re-executing the request.
-> _Linearizable Semantics_:each operation appears execute instantaneously, exactly once, at some point between its invocation and its response.
+> _Linearizable Semantics_: each operation appears execute instantaneously, exactly once, at some point between its invocation and its response.
 ### Issues on the provided implementation
 **Issue 1:** Session expiration
 Because disk resource is limited, we cannot keep track of the session data forever, a timeout for session expiration is needed. 
@@ -108,7 +108,8 @@ Because disk resource is limited, we cannot keep track of the session data forev
 **Issue 2:** Client continuously operations when the session was expired.
 Implements a `RegisterClient` RPC that allocates a new client session and returns the session id to the client.If the server receives a command with unregistered id, respond an error to the client.
 
-## Pre-vote phase
+## Optimization on leader election
+### Pre-vote phase
 On network partitioning, it is possible that we have two local network in which one of them consists of quorum number of nodes and another does not. 
 - The region reaches quorum can properly elects a leader on every term.
 - Whereas the region does not reach quorum will constantly split the vote and increases its term number. 
@@ -116,7 +117,34 @@ When the network resumes, because the servers did not reach quorum have a term n
 
 The introduction of pre-vote phase is used to prevent such issue. On timeout for not receiving leader heartbeat, the node enters pre-vote phase, in which:
 - it asks other servers whether its log was up-to-date enough to get their vote. This is aka _pre-vote_ check.
-- the node increments its `currentTerm` and enters a election only if the node receives quorum number of acknownledgement response.
+- the node increments its `currentTerm` and enters a election only if the node receives quorum number of acknowledgment response.
 
-## Check quorum 
+### Check quorum 
+Having heavier load on read than write is commonly seen in practice. The simplest way of implementing linearizability on read is _Log Read_: append the log entry with read operation to the server. But this approach is slow, it is possible to find another methods to achieve the goal and with a high performance.
 
+We can read from the leader as it contains the most up-to-date log record. However, issue arises on network partition:
+![Stale Read](./img/raft-check-quorum.svg)
+- Suppose node 5 is the leader of the cluster. On network partitioning, node 1 is elected as the new leader.
+- Whereas node 5 cannot realize a new leader is elected, so it will response to read requests, which causing a stale read.
+
+We can added a `check_active_quorum` operation to mitigate (but cannot prevent) such problem:
+- leader checks the number of active followers.
+- if the number of active follower does not reach quorum, step down.
+
+### Leader lease
+On network partitioning, it is possible that the network topology is a connected, but not bipartite graph (aka. partial partition).
+![Partial Partition](./img/raft-partial-partition.png)
+In the above case, suppose node 1 was the leader of the cluster, and the connection between node 1 and node 2 was corrupted. Because node 2 cannot receives the heartbeat from node 1, it begins an election. If there were no new log entry at the node 1 and node 3, node 2 is possible to win the election by receiving the vote from itself and node 3. 
+
+To prevent such issue, we introduce _Leader Lease_ mechanism:
+- before election timeout, a node will not vote for another node if it had receives a heartbeat from a leader.
+
+Leader lease often is used together with check quorum
+![One scenario of network parition](./img/raft-lease-and-quorum.png)
+Suppose node 1 was the leader in the cluster, and network partition happens. In this case:
+- if both leader lease and check quorum is disabled, a new leader can be elected (node 2, 3, 4).
+- if leader lease is enabled and check quorum is disabled, the cluster cannot function because 
+	- None of the node can be elected as a leader: node 2 receives heartbeat from node 1 (the leader), so it does not vote for other nodes.
+	- Log entries cannot be committed to nodes' state machine: node 1 does not receives response from quorum number of nodes.
+- If both leader lease and check quorum is enabled, the cluster now can function:
+	- when such network partition happens, by check quorum mechanism, node 1 check active followers and discovers the number of active follower is less than quorum, it hence step down and node 2 can vote for other nodes during election consequently/

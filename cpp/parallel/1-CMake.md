@@ -2,6 +2,7 @@
 A software that can be used to automatically generates `Makefile` for compiling `c` family programs.
 
 the following defines the dependency for compiling the exe file
+
 ```cpp
 add_executable(a.out main.cpp hello.cpp)
 ```
@@ -9,7 +10,8 @@ add_executable(a.out main.cpp hello.cpp)
 `-D` prefix is used for defining variables, for instance
 - `-DCMAKE_CXX_COMPILER=`
 
-Suppose we were given 
+Suppose we were given
+
 ```
 .
 |
@@ -23,10 +25,13 @@ Suppose we were given
 |
 +----- CMakeLists.txt
 ```
-But in `main.cpp` we have 
+
+But in `main.cpp` we have
+
 ```cpp
 #include "hello.h"
 ```
+
 Sometime it is tedious and problematic to change the include headers definition, so we can use
 ```cpp
 target_link_libraries(a.out PUBLIC hellolib)
@@ -50,7 +55,8 @@ add_library(hellolib SHARED hello.cpp)  // A dynamic library for hello.cpp
 ```
 
 ## Header Files
-```cpp
+
+``` cpp
 // The following can only be applied to cpp compilers like g++ and clang++
 #pragma once // is equivalent to
 
@@ -59,4 +65,5 @@ add_library(hellolib SHARED hello.cpp)  // A dynamic library for hello.cpp
 // ... some code
 #endif 
 ```
+
 *Remark*: putting implementation in a `.h` file is ok, but it lag the compilation time.

@@ -21,12 +21,10 @@
 
 # Part I. Foundations of Data Systems
 ## 1. Reliable, Scalable, and Maintainable Applications
-*Data-intensive*, on the contrary of compute-intensive, application is mainly responsible for:
-- Store data (database)
-- Remember result of expensive operations (cache)
-- Allow users to search data by keywords and filter data (search indexes)
-- Send a message (async) to another process (stream processing)
-- Periodically crunch a large amount of accumulated data (batch processing) In general, data-intensive applications enable jobs can be performed within loosely embedded nodes in a cluster, often demanding on IO throughput.
+*Data-intensive* applications that are 
+- Manipulating large amount of loosely coupled analytic jobs, where jobs can be handled on a cluster.
+- Involving high I/O throughput.
+- Storing data (database), remembering result of expensive operations (cache), allowing users to search data by keywords and filter data (search indexes), sending a message (async) to another process (stream processing), periodically crunch a large amount of accumulated data (batch processing)
 
 ### Metrics of Distributed Systems
 #### Reliability
@@ -167,7 +165,7 @@ Key lookup:
 ### B-Trees
 Break the database down into fixed-size *blocks* or *pages*, 4KB each.
 - One page is designated as the root of B-tree
-- Each chile is responsible for a continuous range of keys.
+- Each child is responsible for a continuous range of keys.
 - Leaf page stores each individual key, which either contains the value for each key inline or contains references to the pages where the values can be found.
 - *Branching factor* describes the number of references to child pages in one page.
 - Efficiency: n keys has O(log n) depth.
